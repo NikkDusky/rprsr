@@ -78,13 +78,12 @@ class Parser():
         logger.info(f"               [{strftime('%X')}]       ")
         logger.info("*=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=*")
 
-        self.hash_list = []
-
         self.cfg_file = "settings.ini"
         self.config = configparser.ConfigParser()
 
         self.checkConfigExistAndTakeVariables()
         self.checkTempFolderExist()
+        self.checkHashesFileExist()
         self.setupBotAndVariables()
         self.createTagsTempFile()
         self.setupHeaders()
@@ -95,7 +94,7 @@ class Parser():
         input("Нажмите Enter, чтобы закрыть приложение...")
         exit()
 
-    def createConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt", hash_pool=512, del_hash_pool=64):
+    def createConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt"):
         self.config.add_section("bot_settings")
         self.config.set("bot_settings", "bot_token", f"{token}")
         self.config.set("bot_settings", "bot_sleep", f"{sleep}")
@@ -110,15 +109,11 @@ class Parser():
         self.config.set("temp_files", "folder", f"{folder}")
         self.config.set("temp_files", "tags", f"{tags}")
 
-        self.config.add_section("hash_pool_settings")
-        self.config.set("hash_pool_settings", "hash_pool", f"{hash_pool}")
-        self.config.set("hash_pool_settings", "del_hash_pool", f"{del_hash_pool}")
-
         with open(self.cfg_file, "w") as config_file:
             self.config.write(config_file)
         logger.success(f"Файл '{self.cfg_file}' сформирован.")
 
-    def updateConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt", hash_pool=512, del_hash_pool=64):
+    def updateConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt"):
         logger.info(f"Обновляю {self.cfg_file}: Общее количество страниц {self.total_pages}.")
         self.config.set("bot_settings", "bot_token", f"{token}")
         self.config.set("bot_settings", "bot_sleep", f"{sleep}")
@@ -130,9 +125,6 @@ class Parser():
 
         self.config.set("temp_files", "folder", f"{folder}")
         self.config.set("temp_files", "tags", f"{tags}")
-
-        self.config.set("hash_pool_settings", "hash_pool", f"{hash_pool}")
-        self.config.set("hash_pool_settings", "del_hash_pool", f"{del_hash_pool}")
 
         with open(self.cfg_file, "w") as config_file:
             self.config.write(config_file)
@@ -161,9 +153,6 @@ class Parser():
             self.filename = self.config.get("temp_files", "tags")
             self.total_pages = int(self.config.get("link_settings", "total_pages"))
             self.end_page = int(self.config.get("link_settings", "end_page"))
-
-            self.img_hash_pool = int(self.config.get("hash_pool_settings", "hash_pool"))
-            self.del_hash_pool = int(self.config.get("hash_pool_settings", "del_hash_pool"))
         except:
             logger.error("Некоторые настройки в конфиг файле не найдены.")
             self.delConfig(self.cfg_file) #Delete config
@@ -184,6 +173,14 @@ class Parser():
             logger.info(f"Папка '{self.folder}' не найдена. Создаю новую.")
             mkdir(f"{self.folder}")
 
+    def checkHashesFileExist(self):
+        if path.isfile("hashes"):
+            logger.info("Файл hashes обнаружен.")
+        else:
+            logger.error("Файл hashes не найден.")
+            self.createHashesFile()
+            logger.success("Файл hashes создан.")
+
     def setupBotAndVariables(self):
         #Setup bot
         self.bot = telebot.TeleBot(self.bot_token)
@@ -196,6 +193,10 @@ class Parser():
         #Create tags temp file.
         f = open(self.filename, 'w', encoding='utf8')
         f.close()
+
+    def createHashesFile(self):
+        hashesFile = open('hashes', 'w', encoding='utf8')
+        hashesFile.close()
 
     def setupHeaders(self):
         #Headers for parser
@@ -211,17 +212,18 @@ class Parser():
     def check_hash(self, folder, img):
         openedFile = open(f'{folder}\\{img}', 'rb')
         md5Hash = hashlib.md5(openedFile.read()).hexdigest()
-        if md5Hash in self.hash_list:
-            logger.log("OLD", f"Картинка {img} является не новой, судя по последним [{len(self.hash_list)} из {self.img_hash_pool}] картинкам.")
+        with open("hashes", "r", encoding='utf8') as hashFile:
+            hashList = []
+            for line in hashFile:
+                hashList.append(line.rstrip("\n"))
+
+        if md5Hash in hashList:
+            logger.log("OLD", f"Картинка {img} является не новой.")
             return False
         else:
-            logger.log("NEW", f"Картинка {img} является новой, судя по последним [{len(self.hash_list)} из {self.img_hash_pool}] картинкам.")
-            if len(self.hash_list) >= self.img_hash_pool:
-                logger.success(f"Удаляю информацию о {self.del_hash_pool} старых картинках.")
-                self.hash_list = self.hash_list[self.del_hash_pool:]
-                self.hash_list.append(md5Hash)
-            else:
-                self.hash_list.append(md5Hash)
+            logger.log("NEW", f"Картинка {img} является новой. Записываю hash в hashes.")
+            with open("hashes", "a", encoding='utf8') as hashFile:
+                hashFile.write(f"{md5Hash}\n")
             return True
 
     #Bot picture deal func
@@ -366,7 +368,7 @@ class Parser():
                     URL = f"{self.Link}/{self.total_pages}"
                     self.parse(URL)
                     self.total_pages -= 1
-                    self.updateConfig(self.total_pages, self.bot_token, self.bot_time_sleep, self.channel_name, self.Link, self.end_page, self.folder, self.filename, self.img_hash_pool, self.del_hash_pool)
+                    self.updateConfig(self.total_pages, self.bot_token, self.bot_time_sleep, self.channel_name, self.Link, self.end_page, self.folder, self.filename)
                     self.send_to_channel()
                 else:
                     logger.info("Готово...")
