@@ -1,7 +1,7 @@
 from os import system, remove, listdir, path, mkdir
+from time import sleep, strftime
 from shutil import rmtree
 from sys import stdout
-from time import sleep, strftime
 import hashlib
 import ast
 import re
@@ -58,9 +58,11 @@ except ModuleNotFoundError:
     import telebot
     logger.success("PyTelegramBotAPI установлен!")
 
+#Main class
 @logger.catch()
 class Parser():
     def __init__(self):
+        #Handlers for loguru
         config = {
             "handlers": [
                 {"sink": stdout, "format": "[<light-cyan>{time:YYYY-MM-DD HH:mm:ss}</light-cyan>] [<level>{level}</level>] <level>{message}</level>"},
@@ -68,32 +70,37 @@ class Parser():
                         ]
                 }
 
-        logger.configure(**config)
-        new_level = logger.level("FORMAT", no=38, color="<le>")
-        new_content = logger.level("NEW", no=38, color="<lg>")
-        old_content = logger.level("OLD", no=38, color="<r>")
+        logger.configure(**config) #Configure loguru with handlers
+        new_level = logger.level("FORMAT", no=38, color="<le>") #new level for logging file formats [.png; .jpg; .jpeg; .gif;]
+        new_content = logger.level("NEW", no=38, color="<lg>") #new level for checked content
+        old_content = logger.level("OLD", no=38, color="<r>") #new level for checked content
+
+        self.d_dict = {} #variable for tags dict
+        self.pic_number = 1 #variable for content counting
+
         logger.info("Все библиотеки присутствуют, начинаю работу.")
         logger.info("*=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=*")
         logger.info("             reactor parser              ")
         logger.info(f"               [{strftime('%X')}]       ")
         logger.info("*=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=*")
 
-        self.cfg_file = "settings.ini"
-        self.config = configparser.ConfigParser()
+        self.cfg_file = "settings.ini" #set config name
+        self.config = configparser.ConfigParser() #init configparser
 
-        self.checkConfigExistAndTakeVariables()
-        self.checkTempFolderExist()
-        self.checkHashesFileExist()
-        self.setupBotAndVariables()
-        self.createTagsTempFile()
-        self.setupHeaders()
+        self.checkConfigExistAndTakeVariables() #start func (Check Files, Take variables from settings.ini)
+        self.checkTempFolderExist() #start func (Check temp folder for content)
+        self.checkHashesFileExist() #start func (Check hashes file)
+        self.setupBot() #start func (setup telegram bot)
+        self.createTagsTempFile() #start func (create tags.txt temp file)
+        self.setupHeaders() #start func (setup headers for parsing)
 
-        self.mainWorker()
+        self.mainWorker() #start func (run parser / WORK! WORK! WORK!)
 
-    def exitFromApp(self):
+    def exitFromApp(self): #simple func for waiting press key and exit from app
         input("Нажмите Enter, чтобы закрыть приложение...")
         exit()
 
+    #create config func (set sections & parameters / write settings.ini)
     def createConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt"):
         self.config.add_section("bot_settings")
         self.config.set("bot_settings", "bot_token", f"{token}")
@@ -113,6 +120,7 @@ class Parser():
             self.config.write(config_file)
         logger.success(f"Файл '{self.cfg_file}' сформирован.")
 
+    #upd config function (just for total_pages saving)
     def updateConfig(self, total_number=-1, token="YOUR_TOKEN_HERE", sleep="4", send_channel=f"@your_channel_here", link="http://anime.reactor.cc/best", end_page=f"-1", folder=f"anime_best", tags="tags.txt"):
         logger.info(f"Обновляю {self.cfg_file}: Общее количество страниц {self.total_pages}.")
         self.config.set("bot_settings", "bot_token", f"{token}")
@@ -129,19 +137,20 @@ class Parser():
         with open(self.cfg_file, "w") as config_file:
             self.config.write(config_file)
 
+    #check exists config
     def checkConfigExistAndTakeVariables(self):
         if path.isfile(self.cfg_file): #Check config exists
             logger.info(f"Конфиг файл '{self.cfg_file}' обнаружен.")
         else:
             logger.error(f"Конфиг файл '{self.cfg_file}' не найден. Создаю новый.")
             self.createConfig() #Create config
-            logger.error("Задайте: Токен, Имя канала, Ссылку, Папку.")
-            logger.error("Задайте общее количество страниц.")
+            logger.error("Задайте: Токен, Канал, Ссылку, Папку.")
+            logger.error("Задайте: Общее количество страниц.")
             self.exitFromApp()
 
         self.config.read(self.cfg_file) #Read the config file
 
-        #Get variables from config file
+        #else config exists, take variables
         try:
             self.bot_token = self.config.get("bot_settings", "bot_token")
             self.bot_time_sleep = int(self.config.get("bot_settings", "bot_sleep"))
@@ -154,25 +163,29 @@ class Parser():
             self.total_pages = int(self.config.get("link_settings", "total_pages"))
             self.end_page = int(self.config.get("link_settings", "end_page"))
         except:
+            #Exception (settings.ini corrupted? Del, Exit. Run app. Make new config.)
             logger.error("Некоторые настройки в конфиг файле не найдены.")
             self.delConfig(self.cfg_file) #Delete config
             self.exitFromApp()
 
+    #del config func
     def delConfig(self, config_name):
         logger.success("Удаляю старый конфиг файл.")
         remove(config_name)
         logger.error("ВНИМАНИЕ! Перезапустите скрипт!")
 
+    #check temp folder exist
     def checkTempFolderExist(self):
         #Check temp folder exists
-        if path.isdir(f"{self.folder}"):
+        if path.isdir(f"{self.folder}"): #If temp folder exist, del, make new clear space.
             logger.info(f"Папка '{self.folder}' обнаружена. Очищаю и создаю новую.")
             rmtree(f"{self.folder}")
             mkdir(f"{self.folder}")
-        else: #Create temp fodler
+        else: #Else not found, make new folder.
             logger.info(f"Папка '{self.folder}' не найдена. Создаю новую.")
             mkdir(f"{self.folder}")
 
+    #Check hashes file exist
     def checkHashesFileExist(self):
         if path.isfile("hashes"):
             logger.info("Файл hashes обнаружен.")
@@ -181,25 +194,22 @@ class Parser():
             self.createHashesFile()
             logger.success("Файл hashes создан.")
 
-    def setupBotAndVariables(self):
-        #Setup bot
+    #Setup bot func
+    def setupBot(self):
         self.bot = telebot.TeleBot(self.bot_token)
 
-        #Variables don't touch!
-        self.d_dict = {}
-        self.pic_number = 1
-
+    #Create tags temp file func
     def createTagsTempFile(self):
-        #Create tags temp file.
         f = open(self.filename, 'w', encoding='utf8')
         f.close()
 
+    #Create hashes file
     def createHashesFile(self):
         hashesFile = open('hashes', 'w', encoding='utf8')
         hashesFile.close()
 
+    #Setup headers for parser
     def setupHeaders(self):
-        #Headers for parser
         self.HEADERS = {
                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
@@ -209,14 +219,16 @@ class Parser():
     def get_files(self, folder_name):
         return listdir(folder_name)
 
+    #Check content hash
     def check_hash(self, folder, img):
-        openedFile = open(f'{folder}\\{img}', 'rb')
-        md5Hash = hashlib.md5(openedFile.read()).hexdigest()
-        with open("hashes", "r", encoding='utf8') as hashFile:
+        openedFile = open(f'{folder}\\{img}', 'rb') #Open file
+        md5Hash = hashlib.md5(openedFile.read()).hexdigest() #Calculate hash
+        with open("hashes", "r", encoding='utf8') as hashFile: #Open hashes, get lines
             hashList = []
             for line in hashFile:
                 hashList.append(line.rstrip("\n"))
 
+        #If hash in hashes return False, else add hash in hashes & return True
         if md5Hash in hashList:
             logger.log("OLD", f"Картинка {img} является не новой.")
             return False
@@ -226,10 +238,10 @@ class Parser():
                 hashFile.write(f"{md5Hash}\n")
             return True
 
-    #Bot picture deal func
+    #Picture dealing func
     def send_to_channel(self):
         files_to_send = self.get_files(self.folder)
-        files_to_send.sort(key=lambda f: int(re.sub('\D', '', f)))
+        files_to_send.sort(key=lambda f: int(re.sub('\D', '', f))) #sorting list from 1 - n fixing first send like 1, 10, 11
         with open(self.filename, "r") as f:
             self.d_dict = f.read()
         self.d_dict = ast.literal_eval(self.d_dict) #Convert tags string to dictionary with ast lib
@@ -237,15 +249,16 @@ class Parser():
         for img in files_to_send: #Get tag number with pic number
             tag_number = int(img.replace(".jpg", "").replace(".gif", ""))
 
+            #call check_hash (returns True/False)
             if self.check_hash(self.folder, img):
                 logger.info(f'Отправляю изображение: {self.folder}\\{img}')
                 photo = open(f'{self.folder}\\{img}', 'rb')
                 
-                if img.endswith(".jpg"): #If .jpg send_photo
+                if img.endswith(".jpg"): #If .jpg -> bot.send_photo
                     self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}") #Send picture
                     photo.close()
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
-                else: #Else this is gif -> send_animation
+                else: #Else this is gif -> bot.send_video
                     self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
                     photo.close()
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
@@ -270,7 +283,6 @@ class Parser():
 
     #Pictures convert and save
     def resize_and_save(self, link, tags, number_of_pic):
-
         pic_list = ['.jpg', '.jpeg', '.png']
         converted_tags = self.convert_string(tags)
         if converted_tags.startswith("#"):
@@ -286,7 +298,7 @@ class Parser():
             im = Image.open(r.raw)
             width, height = im.size
             im = im.convert('RGB')
-            im_crop = im.crop((0, 0, width, height-15))
+            im_crop = im.crop((0, 0, width, height-15)) #Crop img bottom banner from site
             im_crop.save(f'{self.folder}\\{number_of_pic}.jpg', quality=100)
         else:
             logger.log("FORMAT", f"Ссылка ведёт на .gif - сохраняю как {number_of_pic}.gif")
@@ -296,7 +308,7 @@ class Parser():
             im = Image.open(response.raw)
             width, height = im.size
             frames = ImageSequence.Iterator(im)
-            def thumbnails(frames):
+            def thumbnails(frames): #Crop bottom banner from .gif frames.
                 for frame in frames:
                     thumbnail = frame.copy()
                     thumbnail.thumbnail(im.size, Image.ANTIALIAS)
@@ -342,6 +354,7 @@ class Parser():
             logger.error("Error status code != 200")
             exit()
 
+    #Main work func with while True
     def mainWorker(self):
         if self.bot_token == "YOUR_TOKEN_HERE" or self.bot_time_sleep < 4 or self.channel_name == "@your_channel_here" or self.Link == "" or self.folder == "" or self.filename == "" or self.total_pages <= -1 or self.end_page < -1:
             raise NameError("""
@@ -374,5 +387,6 @@ class Parser():
                     logger.info("Готово...")
                     self.exitFromApp
 
+#Start class
 if __name__ == "__main__":
     Parser()
