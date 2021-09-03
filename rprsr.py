@@ -3,6 +3,7 @@
 # - Content hash checking
 # - Script rewrited [OOP]
 
+
 from os import system, remove, listdir, path, mkdir
 from time import sleep, strftime
 from shutil import rmtree
@@ -10,6 +11,7 @@ from sys import stdout
 import hashlib
 import ast
 import re
+
 
 try:
     from loguru import logger
@@ -62,6 +64,7 @@ except ModuleNotFoundError:
     system("pip install pyTelegramBotAPI")
     import telebot
     logger.success("PyTelegramBotAPI установлен!")
+
 
 #Main class
 @logger.catch()
