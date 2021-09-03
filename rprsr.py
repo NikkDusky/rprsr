@@ -1,3 +1,8 @@
+# reactor parser by Nikk Dusky [v 3.0.2]
+# UPD new in 3.0.0 - 3.0.2
+# - Content hash checking
+# - Script rewrited [OOP]
+
 from os import system, remove, listdir, path, mkdir
 from time import sleep, strftime
 from shutil import rmtree
