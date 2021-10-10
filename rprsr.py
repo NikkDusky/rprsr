@@ -397,4 +397,7 @@ class Parser():
 
 #Start class
 if __name__ == "__main__":
-    Parser()
+    try:
+        Parser()
+    except KeyboardInterrupt:
+        logger.info("Досрочное завершение работы (CTRL+C).")
