@@ -396,7 +396,7 @@ class Parser():
                     self.send_to_channel()
                 else:
                     logger.info("Готово...")
-                    self.exitFromApp
+                    self.exitFromApp()
 
 #Start class
 if __name__ == "__main__":
