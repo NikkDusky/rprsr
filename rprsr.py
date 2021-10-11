@@ -177,7 +177,7 @@ class Parser():
             self.exitFromApp()
 
     #del config func
-    def delConfig(self, config_name):
+    def delConfig(self, config_name: str) -> None:
         logger.success("Удаляю старый конфиг файл.")
         remove(config_name)
         logger.error("ВНИМАНИЕ! Перезапустите скрипт!")
@@ -224,11 +224,11 @@ class Parser():
                 }
 
     #Get pictures in folder
-    def get_files(self, folder_name):
+    def get_files(self, folder_name: str) -> None:
         return listdir(folder_name)
 
     #Check content hash
-    def check_hash(self, folder, img):
+    def check_hash(self, folder: str, img: str) -> bool:
         openedFile = open(f'{folder}\\{img}', 'rb') #Open file
         md5Hash = hashlib.md5(openedFile.read()).hexdigest() #Calculate hash
         with open("hashes", "r", encoding='utf8') as hashFile: #Open hashes, get lines
@@ -281,7 +281,7 @@ class Parser():
         return r
 
     #hashtags regex converter
-    def convert_string(self, string):
+    def convert_string(self, string: str) -> str:
         string = re.sub('[^a-zA-Z$,]', "", string).replace(",", " #").replace("# ", "")
         string = string.rstrip("#")
         string = re.sub('[^#a-zA-Z$, ]', "", string)
@@ -290,7 +290,7 @@ class Parser():
         return string
 
     #Pictures convert and save
-    def resize_and_save(self, link, tags, number_of_pic):
+    def resize_and_save(self, link: str, tags: list, number_of_pic: int) -> None:
         pic_list = ['.jpg', '.jpeg', '.png']
         converted_tags = self.convert_string(tags)
         if converted_tags.startswith("#"):
@@ -328,7 +328,7 @@ class Parser():
             om.save(f'{self.folder}\\{number_of_pic}.gif', save_all=True, append_images=list(frames), loop=0)
 
     #Content parser
-    def get_content(self, html):
+    def get_content(self, html: str) -> None:
         links = []
         tags = []
         self.d_dict = {}
@@ -354,7 +354,7 @@ class Parser():
             f.write(f"{self.d_dict}")
 
     #Get response from url
-    def parse(self, ParseLink):
+    def parse(self, ParseLink: str) -> None:
         self.html = self.get_html(ParseLink)
         if self.html.status_code == 200:
             self.get_content(self.html.text)
@@ -397,4 +397,7 @@ class Parser():
 
 #Start class
 if __name__ == "__main__":
-    Parser()
+    try:
+        Parser()
+    except KeyboardInterrupt:
+        logger.info("Досрочное завершение работы (CTRL+C).")
