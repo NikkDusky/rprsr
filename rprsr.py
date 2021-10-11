@@ -270,10 +270,13 @@ class Parser():
                     self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
                     photo.close()
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
+
+                sleep(self.bot_time_sleep) #Sleep send function
+                
             else:
                 pass
             remove(f"{self.folder}\\{img}") #Remove sended picture
-            sleep(self.bot_time_sleep) #Sleep send function
+            
 
     #Get html for parsing
     def get_html(self, url, params=None):
