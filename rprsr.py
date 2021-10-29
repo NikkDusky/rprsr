@@ -1,7 +1,6 @@
-# reactor parser by Nikk Dusky [3.0.2]
-# UPD new in 3.0.0 - 3.0.2
-# Checking content hashes
-# Script rewrited [OOP]
+# reactor parser by Nikk Dusky [3.0.7]
+# UPD new in 3.0.7
+# Max size images
 
 
 from os import system, remove, listdir, path, mkdir
@@ -246,6 +245,36 @@ class Parser():
                 hashFile.write(f"{md5Hash}\n")
             return True
 
+    def change_ratio_size(self, width: int, height: int):
+        if width > height:
+            ratio = width / height
+            while width > 4000:
+                width = width - ratio
+                height = height - 1
+
+        elif height > width:
+            ratio = height / width
+            while height > 4000:
+                height = height - ratio
+                width = width - 1
+
+        else:
+            while height > 4000:
+                width -= 1
+                height -= 1
+        return round(width), round(height)
+
+    def check_size(self, folder: str, img: str) -> bool:
+        imgFile = Image.open(f"{folder}/{img}")
+        tmpWidth, tmpHeight = imgFile.size
+        if tmpWidth > 4000 or tmpHeight > 4000:
+            logger.error(f"Разрешение {img} слишком большое, понижаю размер до 4000х4000.")
+            newTmpWidth, newTmpHeight = self.change_ratio_size(tmpWidth, tmpHeight)
+            imgFile = imgFile.resize((newTmpWidth, newTmpHeight), Image.ANTIALIAS)
+            imgFile.save(f"{folder}/{img}")
+        else:
+            logger.success(f"Разрешение {img} в норме.")
+
     #Picture dealing func
     def send_to_channel(self):
         files_to_send = self.get_files(self.folder)
@@ -257,27 +286,26 @@ class Parser():
         for img in files_to_send: #Get tag number with pic number
             tag_number = int(img.replace(".jpg", "").replace(".gif", ""))
 
+            self.check_size(self.folder, img)
+
             #call check_hash (returns True/False)
             if self.check_hash(self.folder, img):
                 logger.info(f'Отправляю изображение: {self.folder}\\{img}')
                 photo = open(f'{self.folder}\\{img}', 'rb')
                 
                 if img.endswith(".jpg"): #If .jpg -> bot.send_photo
-                    self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}") #Send picture
-                    photo.close()
+                    self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}") #!!! Error !!! SIZE > 10 MB #Send picture
+                    photo.close()                                                               #!!! Error code: 400. Description: Bad Request: PHOTO_INVALID_DIMENSIONS
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
                 else: #Else this is gif -> bot.send_video
                     self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
                     photo.close()
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
-
                 sleep(self.bot_time_sleep) #Sleep send function
-                
             else:
                 pass
             remove(f"{self.folder}\\{img}") #Remove sended picture
             
-
     #Get html for parsing
     def get_html(self, url, params=None):
         r = requests.get(url, headers=self.HEADERS, params=params)
@@ -337,15 +365,16 @@ class Parser():
         self.d_dict = {}
 
         soup = BeautifulSoup(html, 'html.parser')
-        posts = soup.find_all('img')
+        posts = soup.find_all('a', class_="prettyPhotoLink")
 
         logger.info(f"Собираю массив картинок со страницы: {self.total_pages}.")
         for post in posts:
-            link = str(post["src"])
+            link = post['href']
             if  link.startswith("http://img2.reactor.cc/pics/post/") or link.startswith("http://img10.reactor.cc/pics/post/") or link.startswith("http://img2.joyreactor.cc/pics/post"):
-                links.append(post["src"])
+                links.append(link)
                 try:
-                    tags.append(post["alt"])
+                    tempTag = post.find("img")
+                    tags.append(tempTag["alt"])
                 except:
                     tags.append("None")
 
