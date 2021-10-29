@@ -294,8 +294,8 @@ class Parser():
                 photo = open(f'{self.folder}\\{img}', 'rb')
                 
                 if img.endswith(".jpg"): #If .jpg -> bot.send_photo
-                    self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}") #!!! Error !!! SIZE > 10 MB #Send picture
-                    photo.close()                                                               #!!! Error code: 400. Description: Bad Request: PHOTO_INVALID_DIMENSIONS
+                    self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}")
+                    photo.close()
                     logger.info(f"Удаляю файл: {self.folder}\\{img}")
                 else: #Else this is gif -> bot.send_video
                     self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
