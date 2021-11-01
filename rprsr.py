@@ -1,6 +1,6 @@
-# reactor parser by Nikk Dusky [3.0.7]
-# UPD new in 3.0.7
-# Max size images
+# reactor parser by Nikk Dusky [3.0.8]
+# UPD new in 3.0.8
+# Bug fix
 
 
 from os import system, remove, listdir, path, mkdir
@@ -64,23 +64,23 @@ except ModuleNotFoundError:
     import telebot
     logger.success("PyTelegramBotAPI установлен!")
 
+config = {
+    "handlers": [
+        {"sink": stdout, "format": "[<light-cyan>{time:YYYY-MM-DD HH:mm:ss}</light-cyan>] [<level>{level}</level>] <level>{message}</level>"},
+        {"sink": "debug.log", "diagnose": False, "compression": "zip", "encoding": "utf8", "rotation": "10 MB", "format": "[<cyan>{time:YYYY-MM-DD HH:mm:ss}</cyan>] [<level>{level}</level>] {message}"},
+                ]
+        }
+
+logger.configure(**config) #Configure loguru with handlers
+new_level = logger.level("FORMAT", no=38, color="<le>") #new level for logging file formats [.png; .jpg; .jpeg; .gif;]
+new_content = logger.level("NEW", no=38, color="<lg>") #new level for checked content
+old_content = logger.level("OLD", no=38, color="<r>") #new level for checked content
 
 #Main class
 @logger.catch()
 class Parser():
     def __init__(self):
         #Handlers for loguru
-        config = {
-            "handlers": [
-                {"sink": stdout, "format": "[<light-cyan>{time:YYYY-MM-DD HH:mm:ss}</light-cyan>] [<level>{level}</level>] <level>{message}</level>"},
-                {"sink": "debug.log", "diagnose": False, "compression": "zip", "encoding": "utf8", "rotation": "10 MB", "format": "[<cyan>{time:YYYY-MM-DD HH:mm:ss}</cyan>] [<level>{level}</level>] {message}"},
-                        ]
-                }
-
-        logger.configure(**config) #Configure loguru with handlers
-        new_level = logger.level("FORMAT", no=38, color="<le>") #new level for logging file formats [.png; .jpg; .jpeg; .gif;]
-        new_content = logger.level("NEW", no=38, color="<lg>") #new level for checked content
-        old_content = logger.level("OLD", no=38, color="<r>") #new level for checked content
 
         self.d_dict = {} #variable for tags dict
         self.pic_number = 1 #variable for content counting
@@ -421,15 +421,19 @@ class Parser():
                     URL = f"{self.Link}/{self.total_pages}"
                     self.parse(URL)
                     self.total_pages -= 1
-                    self.updateConfig(self.total_pages, self.bot_token, self.bot_time_sleep, self.channel_name, self.Link, self.end_page, self.folder, self.filename)
                     self.send_to_channel()
+                    self.updateConfig(self.total_pages, self.bot_token, self.bot_time_sleep, self.channel_name, self.Link, self.end_page, self.folder, self.filename)
                 else:
                     logger.info("Готово...")
                     self.exitFromApp()
 
 #Start class
 if __name__ == "__main__":
-    try:
-        Parser()
-    except KeyboardInterrupt:
-        logger.info("Досрочное завершение работы (CTRL+C).")
+    while True:
+        try:
+            Parser()
+        except KeyboardInterrupt:
+            logger.info("Досрочное завершение работы (CTRL+C).")
+            break
+        except:
+            pass
