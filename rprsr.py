@@ -284,27 +284,31 @@ class Parser():
         self.d_dict = ast.literal_eval(self.d_dict) #Convert tags string to dictionary with ast lib
 
         for img in files_to_send: #Get tag number with pic number
-            tag_number = int(img.replace(".jpg", "").replace(".gif", ""))
+            try:
+                tag_number = int(img.replace(".jpg", "").replace(".gif", ""))
 
-            self.check_size(self.folder, img)
+                self.check_size(self.folder, img)
 
-            #call check_hash (returns True/False)
-            if self.check_hash(self.folder, img):
-                logger.info(f'Отправляю изображение: {self.folder}\\{img}')
-                photo = open(f'{self.folder}\\{img}', 'rb')
-                
-                if img.endswith(".jpg"): #If .jpg -> bot.send_photo
-                    self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}")
-                    photo.close()
-                    logger.info(f"Удаляю файл: {self.folder}\\{img}")
-                else: #Else this is gif -> bot.send_video
-                    self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
-                    photo.close()
-                    logger.info(f"Удаляю файл: {self.folder}\\{img}")
-                sleep(self.bot_time_sleep) #Sleep send function
-            else:
+                #call check_hash (returns True/False)
+                if self.check_hash(self.folder, img):
+                    logger.info(f'Отправляю изображение: {self.folder}\\{img}')
+                    photo = open(f'{self.folder}\\{img}', 'rb')
+                    
+                    if img.endswith(".jpg"): #If .jpg -> bot.send_photo
+                        self.bot.send_photo(self.channel_name, photo, f"{self.d_dict[tag_number]}")
+                        photo.close()
+                        logger.info(f"Удаляю файл: {self.folder}\\{img}")
+                    else: #Else this is gif -> bot.send_video
+                        self.bot.send_video(self.channel_name, photo, None, f"{self.d_dict[tag_number]}")
+                        photo.close()
+                        logger.info(f"Удаляю файл: {self.folder}\\{img}")
+                    sleep(self.bot_time_sleep) #Sleep send function
+                else:
+                    pass
+                remove(f"{self.folder}\\{img}") #Remove sended picture
+            except FileNotFoundError:
+                logger.error(f"Файл {img} не найден.")
                 pass
-            remove(f"{self.folder}\\{img}") #Remove sended picture
             
     #Get html for parsing
     def get_html(self, url, params=None):
